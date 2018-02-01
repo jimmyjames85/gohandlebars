@@ -5,67 +5,89 @@ import (
 	"regexp"
 )
 
-type TokenType int
+type TokenType string
 
-// tokens are terminal statements
+func (t *TokenType) String() string { return string(*t) }
+
 const (
-	// Tokens
-	tokenLineComment TokenType = iota
-	tokenMultiLineComment
-	tokenOpenBrace
-	tokenCloseBrace
-	tokenOpenParen
-	tokenCloseParen
-	tokenEquals
-	tokenIsEquals
-	tokenKWIf
-	tokenKWElse
-	tokenKWInt
-	tokenKWReturn
-	tokenIdentifier
-	tokenIntLiteral
-	tokenSemicolon
-	tokenAsterix
-	tokenDot
-	tokenWhitespace
-	tokenStringLiteral
-	tokenLT
-	tokenLTE
-	tokenGT
-	tokenGTE
+	LineComment      = TokenType("LineComment")
+	MultiLineComment = TokenType("MultiLineComment")
+
+	OpenBrace  = TokenType("OpenBrace")
+	CloseBrace = "CloseBrace"
+	OpenParen  = TokenType("OpenParen")
+	CloseParen = "CloseParen"
+
+	// comparators
+	EQ  = TokenType("EQ")
+	LT  = TokenType("LT")
+	LTE = TokenType("LTE")
+	GT  = TokenType("GT")
+	GTE = TokenType("GTE")
+
+	// keywords
+	If     = TokenType("if")
+	Else   = TokenType("else")
+	Int    = TokenType("int")
+	Float  = TokenType("float")
+	Return = TokenType("return")
+
+	// literals todo is literal the right name?
+	IntLiteral    = TokenType("IntLiteral")
+	FloatLiteral  = TokenType("FloatLiteral")
+	StringLiteral = TokenType("StringLiteral")
+
+	// todo better naming for the following...and what classification?
+	Assignment = TokenType("Assignment")
+	Asterix    = TokenType("Asterix")
+	Dot        = TokenType("Dot")
+	Identifier = TokenType("Identifier")
+	Semicolon  = TokenType("Semicolon")
+	Whitespace = TokenType("Whitespace")
 )
 
+// tokens are terminal statements
 var tokenMap = map[TokenType]*regexp.Regexp{
 
-	// TODO optimization test: add a $ in front each one of these
+	// TODO optimization test: add a ^ in front each one of these
 	// regexes for early exit. We enforce that we must match at
 	// the first char of data, so do an optimization test to see
 	// if regexes do early exits.
 
-	// See https://golang.org/pkg/regexp/syntax/
-	tokenLineComment:      regexp.MustCompile(`//.*`),
-	tokenMultiLineComment: regexp.MustCompile(`(?Us)/\*.*\*/`), // (?Us) Ungreedy multi-line mode
-	tokenOpenBrace:        regexp.MustCompile(`{`),
-	tokenCloseBrace:       regexp.MustCompile(`}`),
-	tokenOpenParen:        regexp.MustCompile(`\(`),
-	tokenCloseParen:       regexp.MustCompile(`\)`),
-	tokenEquals:           regexp.MustCompile(`=`),
-	tokenIsEquals:         regexp.MustCompile(`==`),
-	tokenKWIf:             regexp.MustCompile(`if`),
-	tokenKWElse:           regexp.MustCompile(`else`),
-	tokenKWInt:            regexp.MustCompile(`int`),
-	tokenKWReturn:         regexp.MustCompile(`return`),
-	tokenIdentifier:       regexp.MustCompile(`[a-zA-Z]\w*`),
-	tokenIntLiteral:       regexp.MustCompile(`[0-9]+`),
-	tokenSemicolon:        regexp.MustCompile(`;`),
-	tokenAsterix:          regexp.MustCompile(`\*`),
-	tokenDot:              regexp.MustCompile(`\.`),
-	tokenWhitespace:       regexp.MustCompile(`\s+`),
-	tokenStringLiteral:    regexp.MustCompile(`"(?:[^"\\]|\\.)*"`), // this probably needs to be tested
-	tokenLT:               regexp.MustCompile(`<`),
-	tokenLTE:              regexp.MustCompile(`<=`),
-	tokenGT:               regexp.MustCompile(`>`),
-	tokenGTE:              regexp.MustCompile(`>=`),
+	LineComment:      regexp.MustCompile(`//.*`),
+	MultiLineComment: regexp.MustCompile(`(?Us)/\*.*\*/`), // (?Us) Ungreedy multi-line mode See https://golang.org/pkg/regexp/syntax/
+
+	OpenBrace:  regexp.MustCompile(`{`),
+	CloseBrace: regexp.MustCompile(`}`),
+	OpenParen:  regexp.MustCompile(`\(`),
+	CloseParen: regexp.MustCompile(`\)`),
+
+	// comparators
+	EQ:  regexp.MustCompile(`==`),
+	LT:  regexp.MustCompile(`<`),
+	LTE: regexp.MustCompile(`<=`),
+	GT:  regexp.MustCompile(`>`),
+	GTE: regexp.MustCompile(`>=`),
+
+	// keywords
+	If:     regexp.MustCompile(`if`),
+	Else:   regexp.MustCompile(`else`),
+	Int:    regexp.MustCompile(`int`),
+	Float:  regexp.MustCompile(`float`),
+	Return: regexp.MustCompile(`return`),
+
+	// literals todo is literal the right name?
+	IntLiteral:    regexp.MustCompile(`[0-9]+`),
+	FloatLiteral:  regexp.MustCompile(`[0-9]+\.[0-9]+`),
+	StringLiteral: regexp.MustCompile(`"(?:[^"\\]|\\.)*"`), // this probably needs to be tested
+
+	// todo better naming for the following...and what classification?
+	Assignment: regexp.MustCompile(`=`),
+	Asterix:    regexp.MustCompile(`\*`),
+	Dot:        regexp.MustCompile(`\.`),
+	Identifier: regexp.MustCompile(`[a-zA-Z]\w*`), // TODO need to make sure these don't clash with keywords
+	Semicolon:  regexp.MustCompile(`;`),
+	Whitespace: regexp.MustCompile(`\s+`),
 }
 
 type Token struct {
@@ -148,7 +170,7 @@ func nextToken(data []byte) (advance int, token *Token, err error) {
 	}
 
 	// one of the tokens matched!!
-	if typ == tokenWhitespace {
+	if typ == "Whitespace" {
 		// whitspace found, but don't return it
 		return cur[1], nil, nil
 	}

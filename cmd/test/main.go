@@ -1,5 +1,7 @@
 package main
 
+// Visit https://norasandler.com/2017/11/29/Write-a-Compiler.html
+
 import (
 	"log"
 
@@ -11,7 +13,7 @@ const input = "1234 5678 1234567901234567890"
 
 func main() {
 
-	code := []byte(`{ int foo = 23234;
+	_ = []byte(`{ int foo = 23234;
 
 // 3this is a comment
 }
@@ -42,7 +44,7 @@ int main(char *args){
 
 `)
 
-	code = []byte(`
+	_ = []byte(`
 /* this is a comment
 multi line */
 
@@ -53,9 +55,26 @@ if (a <= b) {
     c = 3;
 }
 
+float f = 34.23443254;
+
 `)
 
-	err := parser.Parse(code)
+	return2 := []byte(`
+
+	return 334;
+
+	/*
+	  This is a multiline comment
+	*/
+
+	int main() {
+	    // line comment
+	    return 2;
+	}
+
+`)
+
+	err := parser.ParseReturn2(return2)
 	if err != nil {
 		log.Fatalf("%v\n", err)
 	}
