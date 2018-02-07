@@ -8,15 +8,21 @@ import (
 type TokenType string
 
 func (t *TokenType) String() string { return string(*t) }
+func (t *TokenType) IsComment() bool {
+	if t == nil {
+		return false
+	}
+	return *t == LineComment || *t == MultiLineComment
+}
 
 const (
 	LineComment      = TokenType("LineComment")
 	MultiLineComment = TokenType("MultiLineComment")
 
 	OpenBrace  = TokenType("OpenBrace")
-	CloseBrace = "CloseBrace"
+	CloseBrace = TokenType("CloseBrace")
 	OpenParen  = TokenType("OpenParen")
-	CloseParen = "CloseParen"
+	CloseParen = TokenType("CloseParen")
 
 	// comparators
 	EQ  = TokenType("EQ")
@@ -117,6 +123,16 @@ func Scan(data []byte) ([]*Token, error) {
 	return ret, nil
 }
 
+func isKeyWord(typ TokenType) bool {
+	// TODO implement with map instead of ranging over slice
+	for _, t := range []TokenType{If, Else, Int, Float, Return} {
+		if typ == t {
+			return true
+		}
+	}
+	return false
+}
+
 func nextToken(data []byte) (advance int, token *Token, err error) {
 	if len(data) == 0 {
 		return 0, nil, nil
@@ -149,7 +165,14 @@ func nextToken(data []byte) (advance int, token *Token, err error) {
 			// with an index (i[0]) closer then cur[0]
 			cur = i
 			typ = t
-		} else if cur != nil && (i[0] == cur[0] && tokenLen > curLen) {
+		} else if cur != nil && (i[0] == cur[0] && tokenLen >= curLen) {
+			if tokenLen == curLen {
+				if !isKeyWord(t) {
+					continue
+				}
+
+			}
+
 			// if we matched at the same spot as
 			// cur[0] but we can consume more then
 			// accept this token ( e.g. accept <= instead of < )
@@ -169,12 +192,12 @@ func nextToken(data []byte) (advance int, token *Token, err error) {
 		return 0, nil, fmt.Errorf("unexpected token: %q", data[0:cur[0]+1])
 	}
 
-	// one of the tokens matched!!
-	if typ == "Whitespace" {
-		// whitspace found, but don't return it
+	if typ == Whitespace || typ == LineComment || typ == MultiLineComment {
+		// don't return whitespace or comments
 		return cur[1], nil, nil
 	}
 
+	// one of the tokens matched!!
 	tkn := &Token{
 		Typ: typ,
 		Val: string(data[cur[0]:cur[1]]),
