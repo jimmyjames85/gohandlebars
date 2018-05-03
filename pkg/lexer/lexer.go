@@ -5,16 +5,6 @@ import (
 	"regexp"
 )
 
-type TokenType string
-
-func (t *TokenType) String() string { return string(*t) }
-func (t *TokenType) IsComment() bool {
-	if t == nil {
-		return false
-	}
-	return *t == LineComment || *t == MultiLineComment
-}
-
 const (
 	LineComment      = TokenType("LineComment")
 	MultiLineComment = TokenType("MultiLineComment")
@@ -44,8 +34,16 @@ const (
 	StringLiteral = TokenType("StringLiteral")
 
 	// todo better naming for the following...and what classification?
+
+	Negation          = TokenType("Negation")          // -
+	LogicalNegation   = TokenType("LogicalNegation")   // !
+	BitwiseCompliment = TokenType("BitwiseCompliment") // ~
+
+	Addition       = TokenType("Addition")
+	Multiplication = TokenType("Multiplication")
+	Division       = TokenType("Division")
+
 	Assignment = TokenType("Assignment")
-	Asterix    = TokenType("Asterix")
 	Dot        = TokenType("Dot")
 	Identifier = TokenType("Identifier")
 	Semicolon  = TokenType("Semicolon")
@@ -88,12 +86,44 @@ var tokenMap = map[TokenType]*regexp.Regexp{
 	StringLiteral: regexp.MustCompile(`"(?:[^"\\]|\\.)*"`), // this probably needs to be tested
 
 	// todo better naming for the following...and what classification?
+	Negation:          regexp.MustCompile(`-`),
+	LogicalNegation:   regexp.MustCompile(`!`),
+	BitwiseCompliment: regexp.MustCompile(`~`),
+
+	Addition:       regexp.MustCompile(`\+`),
+	Multiplication: regexp.MustCompile(`\*`),
+	Division:       regexp.MustCompile(`/`),
+
 	Assignment: regexp.MustCompile(`=`),
-	Asterix:    regexp.MustCompile(`\*`),
 	Dot:        regexp.MustCompile(`\.`),
 	Identifier: regexp.MustCompile(`[a-zA-Z]\w*`), // TODO need to make sure these don't clash with keywords
 	Semicolon:  regexp.MustCompile(`;`),
 	Whitespace: regexp.MustCompile(`\s+`),
+}
+
+type TokenType string
+
+func (t *TokenType) String() string { return string(*t) }
+func (t *TokenType) IsComment() bool {
+	if t == nil {
+		return false
+	}
+	return *t == LineComment || *t == MultiLineComment
+}
+
+func (t *TokenType) IsKeyWord() bool {
+	if t == nil {
+		return false
+	}
+	// keywords take highest precedence when parsing
+
+	// TODO implement with map instead of ranging over slice
+	for _, typ := range []TokenType{If, Else, Int, Float, Return} {
+		if *t == typ {
+			return true
+		}
+	}
+	return false
 }
 
 type Token struct {
@@ -101,8 +131,61 @@ type Token struct {
 	Val string
 }
 
-func Scan(data []byte) ([]*Token, error) {
-	var ret []*Token
+///////////////////////////// token list /////////////////////////////
+
+type TokenList interface {
+
+	// Appends a *Token to the token list
+	Append(*Token)
+
+	// Removes and returns the 0th *Token from the token list
+	Pop() *Token
+
+	// Returns the 0th *Token from the token list
+	Peek() *Token
+
+	// Returns the length of the token list
+	Size() int
+
+	//TODO remove once we completely convert from []*Token ----> TokenList
+	TODO_ToSlice() []*Token
+}
+
+func NewTokenList() TokenList { return &tokenlist{tokens: make([]*Token, 0)} }
+
+type tokenlist struct{ tokens []*Token }
+
+// TODO rm this
+func (l *tokenlist) TODO_ToSlice() []*Token { return l.tokens }
+
+func (l *tokenlist) Append(t *Token) {
+	l.tokens = append(l.tokens, t)
+}
+
+func (l *tokenlist) Pop() *Token {
+	if len(l.tokens) == 0 {
+		return nil
+	}
+	ret := l.tokens[0]
+	l.tokens = l.tokens[1:]
+	return ret
+}
+
+func (l *tokenlist) Peek() *Token {
+	if len(l.tokens) == 0 {
+		return nil
+	}
+	return l.tokens[0]
+}
+
+func (l *tokenlist) Size() int {
+	return len(l.tokens)
+}
+
+///////////////////////////// token list /////////////////////////////
+
+func Scan(data []byte) (TokenList, error) {
+	var ret = NewTokenList()
 
 	buf := data
 	advance, token, err := nextToken(buf)
@@ -111,7 +194,7 @@ func Scan(data []byte) ([]*Token, error) {
 			return nil, err
 		}
 		if token != nil {
-			ret = append(ret, token)
+			ret.Append(token)
 		}
 		buf = buf[advance:]
 		advance, token, err = nextToken(buf)
@@ -121,16 +204,6 @@ func Scan(data []byte) ([]*Token, error) {
 		return nil, err
 	}
 	return ret, nil
-}
-
-func isKeyWord(typ TokenType) bool {
-	// TODO implement with map instead of ranging over slice
-	for _, t := range []TokenType{If, Else, Int, Float, Return} {
-		if typ == t {
-			return true
-		}
-	}
-	return false
 }
 
 func nextToken(data []byte) (advance int, token *Token, err error) {
@@ -167,7 +240,7 @@ func nextToken(data []byte) (advance int, token *Token, err error) {
 			typ = t
 		} else if cur != nil && (i[0] == cur[0] && tokenLen >= curLen) {
 			if tokenLen == curLen {
-				if !isKeyWord(t) {
+				if !t.IsKeyWord() {
 					continue
 				}
 
